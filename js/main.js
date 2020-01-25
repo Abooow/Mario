@@ -12,7 +12,7 @@ let tileSetImg;
 
 function setup() {
     createCanvas(512, 480);
-    frameRate(30);
+    frameRate(60);
     level = getLevel(0);
 
     tilesInScreenWidth = ceil(width / TILE_SIZE);
@@ -21,7 +21,7 @@ function setup() {
     if (tilesInScreenHeight > level.height) tilesInScreenHeight = level.height;
 
     camera = new Vector(0 ,0);
-    playerPos = new Vector(TILE_SIZE * 5, TILE_SIZE * 11);
+    playerPos = new Vector(TILE_SIZE * 0, TILE_SIZE * 0);
     playerVel = new Vector(0 ,0);
     playerJumped = false;
 
@@ -31,15 +31,15 @@ function setup() {
     tileSetImg.src = TILE_SET_PATH;  //= loadImage(TILE_SET_PATH);
     //tileSetImg = tileSetImg.resize(tileSetImg.width * (TILE_SIZE / SPRITE_TILE_SIZE), tileSetImg.height * (TILE_SIZE / SPRITE_TILE_SIZE));
 
-    /*let str = '';
-    for (let y = 0; y < tileSetImg.height; y+=16) {
-        for (let x = 0; x < tileSetImg.width; x+=16) {
-            let index = (x / 16) + ((y / 16) * (tileSetImg.width / 16)) + 1;
-            str += `${index}:\t[${x},\t${y}],\n`;
-        }
-    }
+    // let str = '';
+    // for (let y = 0; y < tileSetImg.height; y+=16) {
+    //     for (let x = 0; x < tileSetImg.width; x+=16) {
+    //         let index = (x / 16) + ((y / 16) * (tileSetImg.width / 16)) + 1;
+    //         str += `${index}:\t[${x},\t${y}],\n`;
+    //     }
+    // }
     
-    console.log(str);*/
+    // console.log(str);
 }
 
 function keyReleased() {
@@ -50,7 +50,7 @@ function update() {
     let speed = TILE_SIZE * 0.025;
 
     if (keyIsDown(LEFT_ARROW))  playerVel.x += -speed;
-    if (keyIsDown(RIGHT_ARROW)) playerVel.x += speed; 
+    if (keyIsDown(RIGHT_ARROW)) playerVel.x += speed;
     if (keyIsDown(UP_ARROW) && !playerJumped && playerVel.y <= 0) { 
         if (playerVel.y == 0) {
             playerVel.y -= TILE_SIZE / 4;
@@ -79,7 +79,8 @@ function draw() {
     update();
 
     noStroke();
-    drawLayer(level.background, 0.9);
+    if (level.background.length != 0)
+        drawLayer(level.background, 0.8);
     drawLayer(level.foreground, 1);
 
     // player
@@ -109,6 +110,7 @@ function getNewPosition(position, velocity) {
     if (velocity.y <= 0) {
         if (getTile(new Vector(newPosition.x + 0, newPosition.y + 0)) != 0 || getTile(new Vector(newPosition.x + TILE_SIZE * 0.99, newPosition.y + 0))) {
             newPosition.y = floor(newPosition.y / TILE_SIZE) * TILE_SIZE + TILE_SIZE;
+            playerJumped = true;
             velocity.y = 0;
         }
     }
@@ -130,7 +132,10 @@ function getTileAtPosition(position) {
 function getTile(position) {
     let newPos = getTileAtPosition(position);
 
-    return level.foreground[newPos.y][newPos.x];
+    if (level.collisions.length == 0)
+        return level.foreground[newPos.y][newPos.x];
+    else
+        return level.collisions[newPos.y][newPos.x];
 }
 
 function moveCamera(newPosition) {
@@ -158,7 +163,7 @@ function drawLayer(layer, speed) {
 
             let newX = x * TILE_SIZE - camera.x * speed;
             let newY = y * TILE_SIZE - camera.y * speed;
-            ctx.drawImage(tileSetImg, TILES[tile][0], TILES[tile][1], SPRITE_TILE_SIZE, SPRITE_TILE_SIZE, 
+            ctx.drawImage(tileSetImg, TILES[tile][0] * SPRITE_TILE_SIZE, TILES[tile][1] * SPRITE_TILE_SIZE, SPRITE_TILE_SIZE, SPRITE_TILE_SIZE, 
                                       newX, newY, TILE_SIZE, TILE_SIZE);
             //fill(TILES[tile]);
             //rect(x * TILE_SIZE - camera.x * speed, y * TILE_SIZE - camera.y * speed, TILE_SIZE, TILE_SIZE);
@@ -172,6 +177,7 @@ function getLevel(levelNumber) {
 
     newLevel.foreground = arrayToMatrix(newLevel.foreground, newLevel.width);
     newLevel.background = arrayToMatrix(newLevel.background, newLevel.width);
+    newLevel.collisions = arrayToMatrix(newLevel.collisions, newLevel.width);
     newLevel.activeObjects = arrayToMatrix(newLevel.activeObjects, newLevel.width);
 
     return newLevel;
