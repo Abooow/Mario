@@ -1,14 +1,15 @@
 let level = null;
 let camera;
-let playerPos;
-let playerVel;
-let playerJumped;
+let player;
 let tilesInScreenWidth;
 let tilesInScreenHeight;
 
+let activeObjects;
+let quadTree;
+
 let ctx;
 let tileSetImg;
-
+let spriteImg;
 
 function setup() {
     createCanvas(512, 480);
@@ -20,122 +21,92 @@ function setup() {
     if (tilesInScreenWidth > level.width) tilesInScreenWidth = level.width;
     if (tilesInScreenHeight > level.height) tilesInScreenHeight = level.height;
 
+    
     camera = new Vector(0 ,0);
-    playerPos = new Vector(TILE_SIZE * 0, TILE_SIZE * 0);
-    playerVel = new Vector(0 ,0);
-    playerJumped = false;
-
+    player = new ACTIVE_OBJECTS[1].type([0,0], {...ACTIVE_OBJECTS[1]});
+    
+    quadTree = new QuadTree([0, 0, width, height], 3);
+    QuadTree.debug = true;
 
     ctx = document.getElementById('defaultCanvas0').getContext('2d');
     tileSetImg = new Image();
     tileSetImg.src = TILE_SET_PATH;  //= loadImage(TILE_SET_PATH);
-    //tileSetImg = tileSetImg.resize(tileSetImg.width * (TILE_SIZE / SPRITE_TILE_SIZE), tileSetImg.height * (TILE_SIZE / SPRITE_TILE_SIZE));
+    spriteImg = new Image();
+    spriteImg.src = ACTIVE_SPRITE_PATH;
 
-    // let str = '';
-    // for (let y = 0; y < tileSetImg.height; y+=16) {
-    //     for (let x = 0; x < tileSetImg.width; x+=16) {
-    //         let index = (x / 16) + ((y / 16) * (tileSetImg.width / 16)) + 1;
-    //         str += `${index}:\t[${x},\t${y}],\n`;
-    //     }
-    // }
-    
-    // console.log(str);
+    activeObjects = [];
+    loadActiveObjects();
+}
+
+function loadActiveObjects() {
+    for (let y = 0; y < level.height; y++) {
+        for (let x = 0; x < level.width; x++) {
+            let activeObjectID = level.collisions[y][x];
+            let inBlockID = level.inBlock[y][x];
+            let position = [x * TILE_SIZE, y * TILE_SIZE];
+
+            if (activeObjectID != 0) {
+                activeObjects.push(new ACTIVE_OBJECTS[2].type(position, {...ACTIVE_OBJECTS[2]}));
+            }
+        }
+    }
 }
 
 function keyReleased() {
-    if (keyCode === UP_ARROW) playerJumped = true;
+    if (keyCode === UP_ARROW) player.canJump = false;
 }
 
 function update() {
-    let speed = TILE_SIZE * 0.025;
+    //player.update();
+    
+    quadTree = new QuadTree([0, 0, width, height], 3);
+    for (let obj of activeObjects) {
+        quadTree.insert(new Vector(obj.position[0] - camera.x, obj.position[1] - camera.y), obj);
+    }
 
-    if (keyIsDown(LEFT_ARROW))  playerVel.x += -speed;
-    if (keyIsDown(RIGHT_ARROW)) playerVel.x += speed;
-    if (keyIsDown(UP_ARROW) && !playerJumped && playerVel.y <= 0) { 
-        if (playerVel.y == 0) {
-            playerVel.y -= TILE_SIZE / 4;
-        }
-        else {
-            playerVel.y -= TILE_SIZE / 12;
-        }
+    let objects = quadTree.getObjects();
+    quadTree = new QuadTree([0, 0, width, height], 3);
+    for (let obj of objects) {
+        quadTree.insert(new Vector(obj.position[0] - camera.x, obj.position[1] - camera.y), obj);
+    }
 
-        if (playerVel.y < -TILE_SIZE * 0.44) playerJumped = true;
-    };
+    console.log(quadTree.query([mouseX, mouseY, 100, 100]));
 
-    let drag = TILE_SIZE * 0.025;
-    if (playerVel.x > -drag && playerVel.x < drag) playerVel.x = 0;
+    moveCamera(camera.copy().add(new Vector(1, 0)));
+    for (let i = 0; i < activeObjects.length; i++) {
+        let otherObjects = [...activeObjects];
+        otherObjects.splice(i, 1);
 
-    playerVel.x += -playerVel.x * 0.11;
-    playerVel.y += TILE_SIZE / 31;
+        activeObjects[i].update(otherObjects);
+    }
+    //moveCamera(playerPos.copy().sub(new Vector(TILE_SIZE * floor(tilesInScreenWidth / 2), TILE_SIZE * floor(tilesInScreenHeight / 2))));
+}
 
-    playerPos = getNewPosition(playerPos, playerVel);
-
-    moveCamera(playerPos.copy().sub(new Vector(TILE_SIZE * floor(tilesInScreenWidth / 2), TILE_SIZE * floor(tilesInScreenHeight / 2))));
+function mouseClicked() {
+    quadTree.insert(new Vector(mouseX, mouseY), []);
 }
 
 function draw() {
-    background('rgb(161, 173, 255)')
+    background(level.backgroundColor)
 
     update();
 
     noStroke();
+    // level background
     if (level.background.length != 0)
         drawLayer(level.background, 0.8);
+    // level foreground
     drawLayer(level.foreground, 1);
 
     // player
-    fill('rgb(255, 0, 0)');
-    rect(playerPos.x - camera.x, playerPos.y - camera.y, 
-         TILE_SIZE, TILE_SIZE);
-}
+    //player.draw(ctx, spriteImg, camera);
 
-function getNewPosition(position, velocity) {
-    let newPosition = position.copy().add(velocity);
-    
-    // X
-    if (velocity.x <= 0) {
-        if (getTile(new Vector(newPosition.x, position.y)) != 0 || getTile(new Vector(newPosition.x, position.y + TILE_SIZE * 0.9))) {
-            newPosition.x = floor(newPosition.x / TILE_SIZE) * TILE_SIZE + TILE_SIZE;
-            velocity.x = 0;
-        }
-    }
-    else {
-        if (getTile(new Vector(newPosition.x + TILE_SIZE, position.y)) != 0 || getTile(new Vector(newPosition.x + TILE_SIZE, position.y + TILE_SIZE * 0.9))) {
-            newPosition.x = floor(newPosition.x / TILE_SIZE) * TILE_SIZE;
-            velocity.x = 0;
-        }
-    }
+    // other objects
+    let newCamera = camera.copy().sub(new Vector(0, TILE_SIZE * 0.5));
+    for (let obj of activeObjects)
+        obj.draw(ctx, spriteImg, newCamera);
 
-    // Y
-    if (velocity.y <= 0) {
-        if (getTile(new Vector(newPosition.x + 0, newPosition.y + 0)) != 0 || getTile(new Vector(newPosition.x + TILE_SIZE * 0.99, newPosition.y + 0))) {
-            newPosition.y = floor(newPosition.y / TILE_SIZE) * TILE_SIZE + TILE_SIZE;
-            playerJumped = true;
-            velocity.y = 0;
-        }
-    }
-    else {
-        if (getTile(new Vector(newPosition.x + TILE_SIZE * 0.1, newPosition.y + TILE_SIZE)) != 0 || getTile(new Vector(newPosition.x + TILE_SIZE*0.9, newPosition.y + TILE_SIZE))) {
-            newPosition.y = floor(newPosition.y / TILE_SIZE) * TILE_SIZE;
-            playerJumped = false;
-            velocity.y = 0;
-        }
-    }
-
-    return newPosition;
-}
-
-function getTileAtPosition(position) {
-    return position.copy().div(TILE_SIZE).floor();
-}
-
-function getTile(position) {
-    let newPos = getTileAtPosition(position);
-
-    if (level.collisions.length == 0)
-        return level.foreground[newPos.y][newPos.x];
-    else
-        return level.collisions[newPos.y][newPos.x];
+    quadTree.draw();
 }
 
 function moveCamera(newPosition) {
@@ -162,15 +133,12 @@ function drawLayer(layer, speed) {
             if (!(tile in TILES)) { continue; }
 
             let newX = x * TILE_SIZE - camera.x * speed;
-            let newY = y * TILE_SIZE - camera.y * speed;
+            let newY = y * TILE_SIZE - camera.y * speed + TILE_SIZE * 0.5;
             ctx.drawImage(tileSetImg, TILES[tile][0] * SPRITE_TILE_SIZE, TILES[tile][1] * SPRITE_TILE_SIZE, SPRITE_TILE_SIZE, SPRITE_TILE_SIZE, 
                                       newX, newY, TILE_SIZE, TILE_SIZE);
-            //fill(TILES[tile]);
-            //rect(x * TILE_SIZE - camera.x * speed, y * TILE_SIZE - camera.y * speed, TILE_SIZE, TILE_SIZE);
         }
     }
 }
-
 
 function getLevel(levelNumber) {
     let newLevel = {...LEVELS[levelNumber]};
@@ -179,6 +147,7 @@ function getLevel(levelNumber) {
     newLevel.background = arrayToMatrix(newLevel.background, newLevel.width);
     newLevel.collisions = arrayToMatrix(newLevel.collisions, newLevel.width);
     newLevel.activeObjects = arrayToMatrix(newLevel.activeObjects, newLevel.width);
+    newLevel.inBlock = arrayToMatrix(newLevel.inBlock, newLevel.width);
 
     return newLevel;
 }

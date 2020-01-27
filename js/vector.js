@@ -4,6 +4,16 @@ class Vector {
         this.y = y;
     }
 
+    static arrayToVector(array) {
+        if (array.length < 2) return new Vector(0, 0);
+
+        return new Vector(array[0], array[1]);
+    }
+
+    toArray() {
+        return [this.x, this.y];
+    }
+
     copy() {
         return new Vector(this.x, this.y);
     }
