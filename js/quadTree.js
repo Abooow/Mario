@@ -1,5 +1,7 @@
+'use strict'
+
 class QuadTree {
-    static debug = false;
+    //static debug = false;
 
     constructor(boundary, capacity) {
         this.boundary = boundary;

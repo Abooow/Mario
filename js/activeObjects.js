@@ -1,15 +1,17 @@
-class ActiveObject {
+class GameObject {
     constructor(args) {
-        this.type = ActiveObject;
+        this.id = 0;
+        this.type = GameObject;
         this.name = 'undefined';
         this.tag = 'None';
         this.active = true;
         this.alive = true;
         this.colliderEnabled = true;
-        this.isTrigger = false;
+        this.isSolid = true;
         this.isStatic = false;
+        this.mass = 0;
         this.onCollision = null;
-        this.colliderOffset = [0, 0],
+        this.colliderOffset = [0, 0];
         this.size = [32, 32];
         this.speed = 0.025;
         this.position = [0, 0];
@@ -17,10 +19,22 @@ class ActiveObject {
         this.imageRect = null; // [x, y, w, h]
         this.debug = false;
         this.debugColor = 'rgba(255, 0, 0, 0.5)';
-        this.updates = [];
+        this.spawnPoint = null; // [y, x]
+        this.objectMap = null; // 2d arr
 
         for (let arg in args)
             this[arg] = args[arg];
+        /*if (this.objectMap != null ) {
+
+            console.log(this.objectMap);
+            debugger;
+        }*/
+
+        if (this.objectMap != null || this.spawnPoint != null) {
+            this.objectMap[this.spawnPoint[0]][this.spawnPoint[1]] = 0;
+        /*console.log(this);
+        debugger;*/
+        }
     }
 
     get left() { return this.colliderOffset[0] + this.position[0]; }
@@ -64,57 +78,59 @@ class ActiveObject {
     }
 
     resolveCollision(other) {
-        //if (!this.colliderEnabled || !other.colliderEnabled || this.isStatic) return;
+        if (!this.colliderEnabled || !other.colliderEnabled || !other.alive) return;
 
         // when moving Down and hits another objects Top side
         if (this.velocity[1] > 0 && this.isTouchingTop(other)) {
-            if (!other.isTrigger || other.tag == 'terrain') {
+            if (other.tag == 'terrain' || (this.isSolid && other.isSolid)) {
                 this.position[1] = other.top - this.size[1] - this.colliderOffset[1];
                 this.velocity[1] = 0;
             }
 
-            if (this.onCollision) this.onCollision(other, [0, 1]);
+            if (this.onCollision)  this.onCollision(other, [0, 1]);
             if (other.onCollision) other.onCollision(this, [0, -1]);
         }
         // when moving Up and hits another objects Bottom side
         else if (this.velocity[1] < 0 && this.isTouchingBottom(other)) {
-            if (!other.isTrigger  || other.tag == 'terrain') {
+            if (other.tag == 'terrain' || (this.isSolid && other.isSolid)) {
                 this.position[1] = other.bottom - this.colliderOffset[1];
                 this.velocity[1] = 0;
             }
 
-            if (this.onCollision) this.onCollision(other, [0, -1]);
+            if (this.onCollision)  this.onCollision(other, [0, -1]);
             if (other.onCollision) other.onCollision(this, [0, 1]);
         }
 
         // when moving Right and hits another objects Left side
         if (this.velocity[0] > 0 && this.isTouchingLeft(other)) {
-            if (!other.isTrigger || other.tag == 'terrain'  ) {
+            if (other.tag == 'terrain' || (this.isSolid && other.isSolid)) {
                 this.position[0] = other.left - this.size[0] - this.colliderOffset[0];
                 this.velocity[0] = 0;
             }
 
-            if (this.onCollision) this.onCollision(other, [1, 0]);
+            if (this.onCollision)  this.onCollision(other, [1, 0]);
             if (other.onCollision) other.onCollision(this, [-1, 0]);
         }
         // when moving Left and hits another objects Right side
         else if (this.velocity[0] < 0 && this.isTouchingRight(other)) {
-            if (!other.isTrigger || other.tag == 'terrain' ) {
+            if (other.tag == 'terrain' || (this.isSolid && other.isSolid)) {
                 this.position[0] = other.right - this.colliderOffset[0];
                 this.velocity[0] = 0;
             }
 
-            if (this.onCollision) this.onCollision(other, [-1, 0]);
+            if (this.onCollision)  this.onCollision(other, [-1, 0]);
             if (other.onCollision) other.onCollision(this, [1, 0]);
         }
 
     }
 
     update(otherObjects) {
-        if (!this.active) return;
-
-        for (let func of this.updates)
-            func();
+        /*if (this.objectMap != null || this.spawnPoint != null) {
+            this.objectMap[this.spawnPoint[0], this.spawnPoint[1]] = 0;
+        /*console.log(this);
+        debugger;}
+    */
+        if (!this.active || !this.alive) return;
 
         for (let other of otherObjects) {
             if (this == other) continue;
@@ -125,6 +141,8 @@ class ActiveObject {
     }
     
     draw(ctx, spriteSheet, camera) {
+        if (!this.alive) return;
+
         if (this.imageRect) {
             ctx.drawImage(spriteSheet, this.imageRect[0], this.imageRect[1], this.imageRect[2], this.imageRect[3], 
                 this.position[0] - camera.x, this.position[1] - camera.y, this.imageRect[2], this.imageRect[3]);
@@ -135,22 +153,36 @@ class ActiveObject {
             rect(this.colliderOffset[0] + this.position[0] - camera.x, this.colliderOffset[1] + this.position[1] - camera.y, this.size[0], this.size[1]);
         }
     }
+
+    kill() {
+        console.log(this.id, this.spawnPoint, this.objectMap);
+        if (this.objectMap != null) {
+            this.objectMap[this.spawnPoint[0]][this.spawnPoint[1]] = this.id;
+            console.log(this.objectMap[12][40]);
+        }
+        
+        this.alive = false;
+    }
 }
 
 
-class Player extends ActiveObject {
+class Player extends GameObject {
     constructor(pos, args) {
         super(args);
         
         this.name = 'player';
         this.position = pos;
-        //this.updates.push(this.handleInput); // det gick inte :/ ("this" blir undefined)
         this.canJump = true;
         this.onCollision = this.collision;
     }
 
+    addForce(force) {
+        this.canJump = true;
+        this.velocity[1] = force;
+    }
+
     collision(other, dir) {
-        if(dir[1] == 1) this.canJump = true
+        if(dir[1] == 1) this.canJump = true;
     }
 
     update(otherObjects) {
@@ -163,7 +195,6 @@ class Player extends ActiveObject {
         if (keyIsDown(LEFT_ARROW))  this.velocity[0] += -speed;
         if (keyIsDown(RIGHT_ARROW)) this.velocity[0] += speed;
         if (keyIsDown(UP_ARROW) && this.canJump && this.velocity[1] <= 0) { 
-            console.log(this.velocity[1])
             if (this.velocity[1] == 0) 
             this.velocity[1] -= TILE_SIZE / 4;
             else
@@ -177,24 +208,30 @@ class Player extends ActiveObject {
         
         this.velocity[0] += -this.velocity[0] * 0.11;
         this.velocity[1] += TILE_SIZE / 35;
+
         super.update(otherObjects);
     }
 }
 
-class BasicEnemy extends ActiveObject {
+class BasicEnemy extends GameObject {
     constructor(pos, args) {
         super(args);
         
         this.name = 'enemy1';
         this.tag = 'enemy';
+
         this.position = pos;
-        this.moveDir = -1;
+        this.moveDir = 1;
 
         this.onCollision = this.collision;
     }
 
     collision(other, dir) {
-        if(dir[1] != 0) this.moveDir *= -1;
+        if(dir[0] != 0 && other.name != 'player') this.moveDir *= -1;
+        else if(dir[1] == -1 && other.name == 'player') {
+            other.addForce(-8);
+            //this.kill();
+        }
     }
 
     update(otherObjects) {
@@ -210,7 +247,7 @@ class BasicEnemy extends ActiveObject {
     }
 }
 
-class TestBlock extends ActiveObject {
+class TestBlock extends GameObject {
     constructor(position, args) {
         super(args);
 
@@ -224,7 +261,7 @@ class TestBlock extends ActiveObject {
     }
 }
 
-// class ActiveObject2 {
+// class GameObject2 {
 //     constructor(position, size) {
 //         this.position = position;
 //         this.size = size;
@@ -239,7 +276,7 @@ class TestBlock extends ActiveObject {
 //     }
 
 //     update() {
-//         // let objects = [new ActiveObject(new Vector(0, 0)), new ActiveObject(new Vector(0, 0)];
+//         // let objects = [new GameObject(new Vector(0, 0)), new GameObject(new Vector(0, 0)];
 
 //         // for (let i = 0; i < objects.length; i++) {
 //         //     for (let j = i + 1; j < objects.length; j++){
