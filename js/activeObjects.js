@@ -66,44 +66,48 @@ class ActiveObject {
     resolveCollision(other) {
         //if (!this.colliderEnabled || !other.colliderEnabled || this.isStatic) return;
 
-        //console.log(3)
-        // when moving Right and hits another objects Left side
-        if (this.velocity[0] > 0 && this.isTouchingLeft(other)) {
-            if (!this.isTrigger) {
-                this.position[0] = other.left - this.size[0] - this.colliderOffset[0];
-                this.velocity[0] = 0;
-            }
-
-            if (this.onCollision) onCollision(other, [1, 0]);
-        }
-        // when moving Left and hits another objects Right side
-        else if (this.velocity[0] < 0 && this.isTouchingRight(other)) {
-            if (!this.isTrigger) {
-                this.position[0] = other.right - this.colliderOffset[0];
-                this.velocity[0] = 0;
-            }
-
-            if (this.onCollision) onCollision(other, [-1, 0]);
-        }
-
         // when moving Down and hits another objects Top side
         if (this.velocity[1] > 0 && this.isTouchingTop(other)) {
-            if (!this.isTrigger) {
+            if (!other.isTrigger || other.tag == 'terrain') {
                 this.position[1] = other.top - this.size[1] - this.colliderOffset[1];
                 this.velocity[1] = 0;
             }
 
-            if (this.onCollision) onCollision(other, [0, 1]);
+            if (this.onCollision) this.onCollision(other, [0, 1]);
+            if (other.onCollision) other.onCollision(this, [0, -1]);
         }
         // when moving Up and hits another objects Bottom side
         else if (this.velocity[1] < 0 && this.isTouchingBottom(other)) {
-            if (!this.isTrigger) {
+            if (!other.isTrigger  || other.tag == 'terrain') {
                 this.position[1] = other.bottom - this.colliderOffset[1];
                 this.velocity[1] = 0;
             }
 
-            if (this.onCollision) onCollision(other, [0, -1]);
+            if (this.onCollision) this.onCollision(other, [0, -1]);
+            if (other.onCollision) other.onCollision(this, [0, 1]);
         }
+
+        // when moving Right and hits another objects Left side
+        if (this.velocity[0] > 0 && this.isTouchingLeft(other)) {
+            if (!other.isTrigger || other.tag == 'terrain'  ) {
+                this.position[0] = other.left - this.size[0] - this.colliderOffset[0];
+                this.velocity[0] = 0;
+            }
+
+            if (this.onCollision) this.onCollision(other, [1, 0]);
+            if (other.onCollision) other.onCollision(this, [-1, 0]);
+        }
+        // when moving Left and hits another objects Right side
+        else if (this.velocity[0] < 0 && this.isTouchingRight(other)) {
+            if (!other.isTrigger || other.tag == 'terrain' ) {
+                this.position[0] = other.right - this.colliderOffset[0];
+                this.velocity[0] = 0;
+            }
+
+            if (this.onCollision) this.onCollision(other, [-1, 0]);
+            if (other.onCollision) other.onCollision(this, [1, 0]);
+        }
+
     }
 
     update(otherObjects) {
@@ -112,8 +116,10 @@ class ActiveObject {
         for (let func of this.updates)
             func();
 
-        for (let other of otherObjects)
+        for (let other of otherObjects) {
+            if (this == other) continue;
             this.resolveCollision(other);
+        }
 
         this.position = [this.position[0] + this.velocity[0], this.position[1] + this.velocity[1]];
     }
@@ -136,30 +142,71 @@ class Player extends ActiveObject {
     constructor(pos, args) {
         super(args);
         
+        this.name = 'player';
         this.position = pos;
         //this.updates.push(this.handleInput); // det gick inte :/ ("this" blir undefined)
-        this.canJump;
+        this.canJump = true;
+        this.onCollision = this.collision;
     }
-    
+
+    collision(other, dir) {
+        if(dir[1] == 1) this.canJump = true
+    }
+
     update(otherObjects) {
-        super.update(otherObjects);
-
+        
         let speed = TILE_SIZE * this.speed;
-
-        this.velocity = [0, 0]
-        if (keyIsDown(UP_ARROW)) this.velocity[1] += -speed;
-        if (keyIsDown(DOWN_ARROW)) this.velocity[1] += speed;
-
+        
+        // if (keyIsDown(UP_ARROW))   this.velocity[1] += -speed;
+        // if (keyIsDown(DOWN_ARROW)) this.velocity[1] += speed;
+        
         if (keyIsDown(LEFT_ARROW))  this.velocity[0] += -speed;
         if (keyIsDown(RIGHT_ARROW)) this.velocity[0] += speed;
         if (keyIsDown(UP_ARROW) && this.canJump && this.velocity[1] <= 0) { 
+            console.log(this.velocity[1])
             if (this.velocity[1] == 0) 
-                this.velocity[1] -= TILE_SIZE / 4;
+            this.velocity[1] -= TILE_SIZE / 4;
             else
-                this.velocity[1] -= TILE_SIZE / 12;
-
+            this.velocity[1] -= TILE_SIZE / 12;
+            
             if (this.velocity[1] < -TILE_SIZE * 0.44) this.canJump = false;
         }
+        
+        let drag = TILE_SIZE * 0.025;
+        if (this.velocity[0] > -drag && this.velocity[0] < drag) this.velocity[0] = 0;
+        
+        this.velocity[0] += -this.velocity[0] * 0.11;
+        this.velocity[1] += TILE_SIZE / 35;
+        super.update(otherObjects);
+    }
+}
+
+class BasicEnemy extends ActiveObject {
+    constructor(pos, args) {
+        super(args);
+        
+        this.name = 'enemy1';
+        this.tag = 'enemy';
+        this.position = pos;
+        this.moveDir = -1;
+
+        this.onCollision = this.collision;
+    }
+
+    collision(other, dir) {
+        if(dir[1] != 0) this.moveDir *= -1;
+    }
+
+    update(otherObjects) {
+        
+        let speed = TILE_SIZE * this.speed;
+        
+        this.velocity[0] = speed * this.moveDir;
+        
+        //this.velocity[0] += -this.velocity[0] * 0.11;
+        this.velocity[1] += TILE_SIZE / 35;
+
+        super.update(otherObjects);
     }
 }
 
@@ -167,7 +214,13 @@ class TestBlock extends ActiveObject {
     constructor(position, args) {
         super(args);
 
+        this.tag = 'terrain';
         this.position = position;
+        this.onCollision = this.collision;
+    }
+
+    collision(other, dir) {
+        if(dir[1] == 1) this.debugColor = 'rgba(0, 0, 255, 0.5)';
     }
 }
 

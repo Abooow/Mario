@@ -10,15 +10,15 @@ class QuadTree {
     }
 
     static boundaryContains(boundary, point) {
-        return point.x > boundary[0] && point.x < boundary[0] + boundary[2] &&
-               point.y > boundary[1] && point.y < boundary[1] + boundary[3];
+        return point.x >= boundary[0] && point.x < boundary[0] + boundary[2] &&
+               point.y >= boundary[1] && point.y < boundary[1] + boundary[3];
     }
 
     static boundaryIntersects(boundary, otherBoundary) {
         return boundary[0] + boundary[2] > otherBoundary[0] &&
-               boundary[1] + boundary[3] > otherBoundary[1] &&
+               boundary[1] + boundary[3] >= otherBoundary[1] &&
                boundary[0] < otherBoundary[0] + otherBoundary[2] &&
-               boundary[1] < otherBoundary[1] + otherBoundary[3];
+               boundary[1] <= otherBoundary[1] + otherBoundary[3];
     }
 
     insert(point, object) {
