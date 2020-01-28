@@ -173,6 +173,7 @@ class Player extends GameObject {
         super(args);
         
         this.name = 'player';
+        this.tag = 'player';
         this.position = pos;
         this.canJump = true;
         this.onCollision = this.collision;
@@ -231,7 +232,7 @@ class BasicEnemy extends GameObject {
     collision(other, dir) {
         if (dir[0] != 0 && other.name != 'player') this.moveDir *= -1;
         else if (dir[1] == -1 && other.name == 'player') {
-            other.addForce(-8);
+            other.addForce(-10);
             this.kill();
         }
     }
@@ -258,14 +259,15 @@ class KoopaTroopa extends BasicEnemy {
         //super.collision(other, dir);
 
         if (dir[1] == -1 && other.name == 'player') {
+            other.addForce(-10);
             this.kill();
-            let other = new ACTIVE_OBJECTS[this.evolveTo].type(this.position, {...ACTIVE_OBJECTS[this.evolveTo]});
+            let newObj = new OBJECTS[this.evolveTo].type(this.position, {...OBJECTS[this.evolveTo], master: this.master});
             //this.objectMap[this.position[0]][this.spawnPoint[1]] = this.evolveTo; //position uttryckt i tile i level.activeObjects
    /*         console.log(this);
             evolve(this, other);
             console.log(this);*/
             //this.alive = true;
-            this.master.push(other);
+            this.master.push(newObj);
         }
     }
 }
@@ -279,18 +281,43 @@ class Shell extends BasicEnemy {
     }
 
     collision(other, dir) {
-        if (other.name == 'player') {
-            if (dir[1] == -1) {
+        // if (other.name == 'player') {
+        //     if (dir[1] == -1) {
+        //         other.addForce(-8);
+        //         this.moveDir = 0;
+        //         this.moveDir = -dir[0];
+        //     } else if (this.moveDir == 0) {
+        //         this.moveDir = -dir[0];
+        //     } else {
+        //         other.kill();
+        //     }
+        // } else if (dir[0] != 0 && other.tag == 'terrain') {
+        //     this.moveDir *= -1;
+        // } else if (this.moveDir != 0 && other.tag != 'terrain') {
+        //     other.kill();
+        // }
+
+        // if the shell is moving
+        if (this.moveDir != 0) {
+            if (other.tag == 'player' && dir[1] == -1) {
+                other.addForce(-10);
                 this.moveDir = 0;
-            } else if (this.moveDir == 0) {
-                this.moveDir = dir[0];
-            } else {
+            } else if (other.tag == 'terrain' && dir[0] != 0) {
+                this.moveDir *= -1;
+            } else if (other.tag != 'terrain') {
                 other.kill();
             }
-        } else if (dir[0] != 0 && other.tag == 'terrain') {
-            this.moveDir *= -1;
-        } else if (this.moveDir != 0&& other.tag != 'terrain') {
-            other.kill();
+        // if the shell is not moving
+        } else {
+            if (other.tag == 'player') {
+                this.moveDir = -dir[0];
+                if (this.moveDir == 0) {
+                    if (this.position[0] - other.position[0] < 0) this.moveDir = -1;
+                    else this.moveDir = 1;
+                }
+
+                this.position[0] += this.moveDir * 6;
+            }
         }
     }
 }

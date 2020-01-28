@@ -1,4 +1,4 @@
-const ACTIVE_OBJECTS = {
+const OBJECTS = {
     1: {
         name: 'player',
         id: 1,
@@ -39,10 +39,11 @@ const ACTIVE_OBJECTS = {
         name: 'shell',
         id: 55,
         type: Shell,
+        speed: 0.21,
         debugColor: 'rgba(0, 0, 255, 0.5)',
         imageRect: [0, 98, 32, 28],
         debug: true,
-        isSolid: true,
+        isSolid: false,
         size: [32, 28],
     }
 }
