@@ -1,3 +1,7 @@
+function evolve(obj, other) {
+    obj = other;
+}
+
 class GameObject {
     constructor(args) {
         this.id = 0;
@@ -155,10 +159,8 @@ class GameObject {
     }
 
     kill() {
-        console.log(this.id, this.spawnPoint, this.objectMap);
         if (this.objectMap != null) {
             this.objectMap[this.spawnPoint[0]][this.spawnPoint[1]] = this.id;
-            console.log(this.objectMap[12][40]);
         }
         
         this.alive = false;
@@ -221,16 +223,16 @@ class BasicEnemy extends GameObject {
         this.tag = 'enemy';
 
         this.position = pos;
-        this.moveDir = 1;
+        this.moveDir = -1;
 
         this.onCollision = this.collision;
     }
 
     collision(other, dir) {
-        if(dir[0] != 0 && other.name != 'player') this.moveDir *= -1;
-        else if(dir[1] == -1 && other.name == 'player') {
+        if (dir[0] != 0 && other.name != 'player') this.moveDir *= -1;
+        else if (dir[1] == -1 && other.name == 'player') {
             other.addForce(-8);
-            //this.kill();
+            this.kill();
         }
     }
 
@@ -244,6 +246,52 @@ class BasicEnemy extends GameObject {
         this.velocity[1] += TILE_SIZE / 35;
 
         super.update(otherObjects);
+    }
+}
+
+class KoopaTroopa extends BasicEnemy {
+    constructor(pos, args) {
+        super(pos, args);
+    }
+
+    collision(other, dir) {
+        //super.collision(other, dir);
+
+        if (dir[1] == -1 && other.name == 'player') {
+            this.kill();
+            let other = new ACTIVE_OBJECTS[this.evolveTo].type(this.position, {...ACTIVE_OBJECTS[this.evolveTo]});
+            //this.objectMap[this.position[0]][this.spawnPoint[1]] = this.evolveTo; //position uttryckt i tile i level.activeObjects
+   /*         console.log(this);
+            evolve(this, other);
+            console.log(this);*/
+            //this.alive = true;
+            this.master.push(other);
+        }
+    }
+}
+
+
+class Shell extends BasicEnemy {
+    constructor(pos, args) {
+        super(pos, args);
+
+        this.moveDir = 0;
+    }
+
+    collision(other, dir) {
+        if (other.name == 'player') {
+            if (dir[1] == -1) {
+                this.moveDir = 0;
+            } else if (this.moveDir == 0) {
+                this.moveDir = dir[0];
+            } else {
+                other.kill();
+            }
+        } else if (dir[0] != 0 && other.tag == 'terrain') {
+            this.moveDir *= -1;
+        } else if (this.moveDir != 0&& other.tag != 'terrain') {
+            other.kill();
+        }
     }
 }
 

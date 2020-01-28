@@ -3,8 +3,9 @@ let camera;
 let player;
 let tilesInScreenWidth;
 let tilesInScreenHeight;
-let spawnMin = 0;
+let spawnMin = 3;
 let spawnMax = 4;
+let killDist = spawnMax + 6;
 
 let activeObjects;
 let quadTree;
@@ -12,6 +13,7 @@ let quadTree;
 let ctx;
 let tileSetImg;
 let spriteImg;
+
 
 function setup() {
     createCanvas(512, 480);
@@ -69,8 +71,8 @@ function loadActiveObjects() {
     startY = startY < 0 ? 0 : startY;
     startX = startX < 0 ? 0 : startX;
 
-    let endY   = floor(startY + tilesInScreenHeight) + 1 + spawnMax + 1;
-    let endX   = floor(startX + tilesInScreenWidth) + 1 + spawnMax + 1;
+    let endY   = floor(startY + tilesInScreenHeight) + 1 + spawnMax + spawnMin + 1;
+    let endX   = floor(startX + tilesInScreenWidth) + 1 + spawnMax + spawnMin + 1;
     endY = endY <= level.height ? endY : level.height;
     endX = endX <= level.width ? endX : level.width;
 
@@ -93,21 +95,24 @@ function loadActiveObjects() {
             let position = [x * TILE_SIZE, y * TILE_SIZE];
 
             if (activeObjectID in ACTIVE_OBJECTS) {
-                let newObjBlueprint = {...ACTIVE_OBJECTS[activeObjectID], objectMap: level.activeObjects, spawnPoint: [y, x]};
+                let newObjBlueprint = {...ACTIVE_OBJECTS[activeObjectID], objectMap: level.activeObjects, spawnPoint: [y, x], master: activeObjects};
                 //debugger;
-                let newObj = new ACTIVE_OBJECTS[activeObjectID].type(position, newObjBlueprint);
-                console.log(newObj);
                 //console.log(camera.x, camera.y);
+                let size = [TILE_SIZE, TILE_SIZE];
+                if (size in ACTIVE_OBJECTS[activeObjectID]){
+                    size = ACTIVE_OBJECTS[activeObjectID][size];
+                }
 
-                if (newObj.name == 'player') {
-                    player = newObj;
-                    activeObjects.push(newObj);
-                } else if (inSpawnScope(newObj)) {
+                if (ACTIVE_OBJECTS[activeObjectID].name == 'player') {
+                    player = new ACTIVE_OBJECTS[activeObjectID].type(position, newObjBlueprint);
+                    activeObjects.push(player);
+                } else if (inSpawnScope({position: position, size: ((size in ACTIVE_OBJECTS[activeObjectID]) ? ACTIVE_OBJECTS[activeObjectID]['size'] : [TILE_SIZE, TILE_SIZE])})) {
 
+                    let newObj = new ACTIVE_OBJECTS[activeObjectID].type(position, newObjBlueprint);
                     activeObjects.push(newObj);
                 }
 
-                console.log(inSpawnScope(newObj))
+                //console.log(inSpawnScope(newObj))
             }
         }
     }
@@ -125,7 +130,7 @@ function mouseDragged() {
 function update() {
     loadActiveObjects();
 
-    let updateRange = (spawnMax + 1) * TILE_SIZE;
+    let updateRange = (killDist + 1) * TILE_SIZE;
     quadTree = new QuadTree([-updateRange, -updateRange, updateRange * 2 + width, updateRange * 2 + height], 3);
     for (let obj of activeObjects) {
         quadTree.insert(new Vector(obj.position[0] - camera.x, obj.position[1] - camera.y), obj);
@@ -141,6 +146,7 @@ function update() {
         } else if (!obj.alive) {
             activeObjects.splice(activeObjects.indexOf(obj), 1);
         } else if (outOfScope(obj)) {
+            //debugger;
             obj.kill();
         } else {
             let queryRange = [obj.position[0] - obj.size[0] * 1.5 - camera.x, obj.position[1] - obj.size[1] * 1.5 - camera.y, 
@@ -156,7 +162,7 @@ function update() {
 }
 
 function outOfScope(obj) {
-    let scopeSize = spawnMax + 1;
+    let scopeSize = killDist;
     return (camera.x - obj.position[0] > scopeSize * TILE_SIZE) || 
            ((obj.position[0] + obj.size[0]) - (camera.x + width) > scopeSize * TILE_SIZE) ||
            (camera.y - obj.position[1] > scopeSize * TILE_SIZE) || 
@@ -164,12 +170,18 @@ function outOfScope(obj) {
 }
 
 function inSpawnScope(obj) {
-    return ((camera.x - obj.spawnPoint[1] < spawnMax * TILE_SIZE) && (camera.x - obj.spawnPoint[1] > spawnMin * TILE_SIZE)) || 
+    return ((camera.x - obj.position[0] < spawnMax * TILE_SIZE) && (camera.x - obj.position[0] > spawnMin * TILE_SIZE)) || 
            (((obj.position[0] + obj.size[0]) - (camera.x + width) < spawnMax * TILE_SIZE) && ((obj.position[0] + obj.size[0]) - (camera.x + width) > spawnMin * TILE_SIZE)) ||
            ((camera.y - obj.position[1] < spawnMax * TILE_SIZE) && (camera.y - obj.position[1] > spawnMin * TILE_SIZE)) || 
            (((obj.position[1] + obj.size[1]) - (camera.y + height) < spawnMax * TILE_SIZE) && ((obj.position[1] + obj.size[1]) - (camera.y + height) > spawnMin * TILE_SIZE));
 }
 
+/*function inSpawnScope(obj) {
+    return ((camera.x - (obj.position[0] + obj.size[0]) < spawnMax * TILE_SIZE) && (camera.x - (obj.position[0] + obj.size[0]) > spawnMin * TILE_SIZE)) || 
+           ((obj.position[0] - (camera.x + width) < spawnMax * TILE_SIZE) && (obj.position[0] - (camera.x + width) > spawnMin * TILE_SIZE)) ||
+           ((camera.y - (obj.position[1] + obj.size[1]) < spawnMax * TILE_SIZE) && (camera.y - (obj.position[1]  + obj.size[1]) > spawnMin * TILE_SIZE)) || 
+           ((obj.position[1] - (camera.y + height) < spawnMax * TILE_SIZE) && (obj.position[1] - (camera.y + height) > spawnMin * TILE_SIZE));
+}*/
 /*function inSpawnScope(obj) {
     let objLeft = obj.position[0];
     let objRight = obj.position[0] + obj.size[0];
