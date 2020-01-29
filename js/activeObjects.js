@@ -213,6 +213,9 @@ class Player extends GameObject {
         this.velocity[1] += TILE_SIZE / 35;
 
         super.update(otherObjects);
+
+        if (this.position[0] < 0) this.position[0] = 0;
+        else if (this.position[0] + this.size[0] > this.maxX) this.position[0] = this.maxX - this.size[0];
     }
 }
 
@@ -230,7 +233,10 @@ class BasicEnemy extends GameObject {
     }
 
     collision(other, dir) {
-        if (dir[0] != 0 && other.name != 'player') this.moveDir *= -1;
+        if (dir[0] != 0) {
+            if (other.name != 'player') this.moveDir *= -1;
+            else other.kill();
+        }
         else if (dir[1] == -1 && other.name == 'player') {
             other.addForce(-10);
             this.kill();
@@ -261,7 +267,7 @@ class KoopaTroopa extends BasicEnemy {
         if (dir[1] == -1 && other.name == 'player') {
             other.addForce(-10);
             this.kill();
-            let newObj = new OBJECTS[this.evolveTo].type(this.position, {...OBJECTS[this.evolveTo], master: this.master});
+            let newObj = new OBJECTS[this.evolveTo].type(this.position, {...OBJECTS[this.evolveTo], evolvedFrom: this});
             //this.objectMap[this.position[0]][this.spawnPoint[1]] = this.evolveTo; //position uttryckt i tile i level.activeObjects
    /*         console.log(this);
             evolve(this, other);
@@ -269,6 +275,10 @@ class KoopaTroopa extends BasicEnemy {
             //this.alive = true;
             this.master.push(newObj);
         }
+    }
+
+    kill() {
+        this.alive = false;
     }
 }
 
@@ -314,11 +324,24 @@ class Shell extends BasicEnemy {
                 if (this.moveDir == 0) {
                     if (this.position[0] - other.position[0] < 0) this.moveDir = -1;
                     else this.moveDir = 1;
-                }
+                } 
 
-                this.position[0] += this.moveDir * 6;
+                this.position[0] += this.moveDir * other.size[0] * 0.75;
             }
         }
+    }
+
+    kill() {
+        if (evolvedFrom) {
+            if (this.evolvedFrom.objectMap != null) {
+                this.evolvedFrom.objectMap[this.evolvedFrom.spawnPoint[0]][this.evolvedFrom.spawnPoint[1]] = this.evolvedFrom.id;
+            }
+        } else {
+            if (this.objectMap != null) {
+            this.objectMap[this.spawnPoint[0]][this.spawnPoint[1]] = this.id;
+            }
+        }
+        this.alive = false;
     }
 }
 

@@ -77,8 +77,8 @@ function loadDynamicObjects() {
                 let size = [TILE_SIZE, TILE_SIZE];
                 if ('size' in OBJECTS[objectID]) size = OBJECTS[objectID]['size'];
                 
-                if (OBJECTS[objectID].name == 'player') {
-                    player = new OBJECTS[objectID].type(position, objBlueprint);
+                if (OBJECTS[objectID].tag == 'player') {
+                    player = new OBJECTS[objectID].type(position, {...objBlueprint, maxX: level.width * TILE_SIZE});
                     objectsInWorld.push(player);
                 } else if (inSpawnScope({position: position, size: size})) {
                     let newObj = new OBJECTS[objectID].type(position, objBlueprint);
@@ -115,6 +115,10 @@ function update() {
             continue;
         } else if (!obj.alive) {
             objectsInWorld.splice(objectsInWorld.indexOf(obj), 1);
+            if (obj.tag == 'player') {
+                player.position[0] = player.spawnPoint[1] * TILE_SIZE;
+                player.position[1] = player.spawnPoint[0] * TILE_SIZE;
+            }
         } else if (outOfScope(obj)) {
             obj.kill();
         } else {
@@ -128,6 +132,7 @@ function update() {
 
     let newCameraPos = Vector.arrayToVector(player.position).sub(new Vector(TILE_SIZE * floor(tilesInScreenWidth / 2), TILE_SIZE * floor(tilesInScreenHeight / 2)))
     moveCamera(newCameraPos);
+
 }
 
 function outOfScope(obj) {

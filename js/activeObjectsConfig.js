@@ -1,6 +1,7 @@
 const OBJECTS = {
     1: {
         name: 'player',
+        tag: 'player',
         id: 1,
         type: Player,
         speed: 0.025,
