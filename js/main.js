@@ -1,4 +1,7 @@
-let level = null;
+let state;
+let flagSize;
+
+let level;
 let camera;
 let player;
 let tilesInScreenWidth;
@@ -14,27 +17,36 @@ let ctx;
 let tileSetImg;
 let spriteImg;
 
+let debug = true;
+
 
 function setup() {
     createCanvas(512, 480);
     frameRate(60);
+    
+    ctx = document.getElementById('defaultCanvas0').getContext('2d');
+    tileSetImg = new Image();
+    tileSetImg.src = TILE_SET_PATH;  //= loadImage(TILE_SET_PATH);
+    spriteImg = new Image();
+    spriteImg.src = ACTIVE_SPRITE_PATH;
+    
+    load();
+}
 
+function load() {
     // Load level
     level = getLevel(0);
+
+    state = 'game';
+    flagSize = new Vector(10000000, 0);
 
     tilesInScreenWidth = ceil(width / TILE_SIZE);
     tilesInScreenHeight = ceil(height / TILE_SIZE);
     if (tilesInScreenWidth > level.width) tilesInScreenWidth = level.width;
     if (tilesInScreenHeight > level.height) tilesInScreenHeight = level.height;
     
-    QuadTree.debug = true;
+    QuadTree.debug = debug;
     camera = new Vector(0 ,0);
-
-    ctx = document.getElementById('defaultCanvas0').getContext('2d');
-    tileSetImg = new Image();
-    tileSetImg.src = TILE_SET_PATH;  //= loadImage(TILE_SET_PATH);
-    spriteImg = new Image();
-    spriteImg.src = ACTIVE_SPRITE_PATH;
 
     objectsInWorld = [];
     loadStaticObjects();
@@ -48,7 +60,15 @@ function loadStaticObjects() {
             let inObjectID = level.inObjects[y][x];
 
             if (objectID in OBJECTS) {
-                objectsInWorld.push(new OBJECTS[objectID].type(position, {...OBJECTS[objectID], master: objectsInWorld, evolveTo: inObjectID}));
+                let newObj = new OBJECTS[objectID].type(position, {...OBJECTS[objectID], master: objectsInWorld, evolveTo: inObjectID});
+                
+                if (newObj.tag == 'flag') {
+                    newObj['onWin'] = onWin;
+                    if (flagSize.x > y) flagSize.x = y;
+                    if (flagSize.y < y) flagSize.y = y;
+                }
+
+                objectsInWorld.push(newObj);
             }
         }
     }
@@ -98,9 +118,27 @@ function mouseDragged() {
     player.position = [mouseX + camera.x, mouseY + camera.y];
 }
 
-function update() {
-    loadDynamicObjects();
+function onWin(flagObj) {
+    if (state == 'win') return;
 
+    state = 'win';
+    player.blockInput = true;
+    player.velocity[0] = 0;
+
+    let flagLength = flagSize.y - flagSize.x;
+    let hitY = flagLength - (flagObj.position[1] / TILE_SIZE - flagSize.x);
+    console.log(map(hitY, 0, flagLength, 100, 5000));
+}
+
+function update() {
+    if (state == 'win') {
+        if ( player.velocity[1] == 0) player.velocity[0] = 4;
+
+        if (player.position[0] + player.size[0] >= player.maxX) load();
+    }
+
+    loadDynamicObjects();
+    
     let updateRange = (killDist + 1) * TILE_SIZE;
     quadTree = new QuadTree([-updateRange, -updateRange, updateRange * 2 + width, updateRange * 2 + height], 3);
     for (let obj of objectsInWorld) {
@@ -116,8 +154,13 @@ function update() {
         } else if (!obj.alive) {
             objectsInWorld.splice(objectsInWorld.indexOf(obj), 1);
             if (obj.tag == 'player') {
+                // load();
+                // break;
                 player.position[0] = player.spawnPoint[1] * TILE_SIZE;
                 player.position[1] = player.spawnPoint[0] * TILE_SIZE;
+                level.dynamicObjects = arrayToMatrix(LEVELS[0]['dynamicObjects'], level.width);
+                load();
+                break;
             }
         } else if (outOfScope(obj)) {
             obj.kill();
@@ -172,8 +215,8 @@ function draw() {
     // other objects
     for (let obj of objectsInWorld)
         obj.draw(ctx, spriteImg, camera);
-
-    quadTree.draw();
+    
+    if (debug) quadTree.draw();
 }
 
 function moveCamera(newPosition) {

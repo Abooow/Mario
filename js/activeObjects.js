@@ -152,7 +152,7 @@ class GameObject {
                 this.position[0] - camera.x, this.position[1] - camera.y, this.imageRect[2], this.imageRect[3]);
             }
             
-            if (!this.imageRect || this.debug) {
+            if (!BLOCK_DEBUG && (!this.imageRect || this.debug)) {
             fill(this.debugColor);
             rect(this.colliderOffset[0] + this.position[0] - camera.x, this.colliderOffset[1] + this.position[1] - camera.y, this.size[0], this.size[1]);
         }
@@ -172,11 +172,10 @@ class Player extends GameObject {
     constructor(pos, args) {
         super(args);
         
-        this.name = 'player';
-        this.tag = 'player';
         this.position = pos;
         this.canJump = true;
         this.onCollision = this.collision;
+        this.blockInput = false;
     }
 
     addForce(force) {
@@ -189,21 +188,19 @@ class Player extends GameObject {
     }
 
     update(otherObjects) {
-        
-        let speed = TILE_SIZE * this.speed;
-        
-        // if (keyIsDown(UP_ARROW))   this.velocity[1] += -speed;
-        // if (keyIsDown(DOWN_ARROW)) this.velocity[1] += speed;
-        
-        if (keyIsDown(LEFT_ARROW))  this.velocity[0] += -speed;
-        if (keyIsDown(RIGHT_ARROW)) this.velocity[0] += speed;
-        if (keyIsDown(UP_ARROW) && this.canJump && this.velocity[1] <= 0) { 
-            if (this.velocity[1] == 0) 
-            this.velocity[1] -= TILE_SIZE / 4;
-            else
-            this.velocity[1] -= TILE_SIZE / 12;
+        if (!this.blockInput) {
+            let speed = TILE_SIZE * this.speed;
             
-            if (this.velocity[1] < -TILE_SIZE * 0.44) this.canJump = false;
+            if (keyIsDown(LEFT_ARROW))  this.velocity[0] += -speed;
+            if (keyIsDown(RIGHT_ARROW)) this.velocity[0] += speed;
+            if (keyIsDown(UP_ARROW) && this.canJump && this.velocity[1] <= 0) { 
+                if (this.velocity[1] == 0) 
+                this.velocity[1] -= TILE_SIZE / 4;
+                else
+                this.velocity[1] -= TILE_SIZE / 12;
+                
+                if (this.velocity[1] < -TILE_SIZE * 0.44) this.canJump = false;
+            }
         }
         
         let drag = TILE_SIZE * 0.025;
@@ -213,7 +210,7 @@ class Player extends GameObject {
         this.velocity[1] += TILE_SIZE / 35;
 
         super.update(otherObjects);
-
+        
         if (this.position[0] < 0) this.position[0] = 0;
         else if (this.position[0] + this.size[0] > this.maxX) this.position[0] = this.maxX - this.size[0];
     }
@@ -223,9 +220,6 @@ class BasicEnemy extends GameObject {
     constructor(pos, args) {
         super(args);
         
-        this.name = 'enemy1';
-        this.tag = 'enemy';
-
         this.position = pos;
         this.moveDir = -1;
 
@@ -332,7 +326,7 @@ class Shell extends BasicEnemy {
     }
 
     kill() {
-        if (evolvedFrom) {
+        if (this.evolvedFrom) {
             if (this.evolvedFrom.objectMap != null) {
                 this.evolvedFrom.objectMap[this.evolvedFrom.spawnPoint[0]][this.evolvedFrom.spawnPoint[1]] = this.evolvedFrom.id;
             }
@@ -349,7 +343,6 @@ class TestBlock extends GameObject {
     constructor(position, args) {
         super(args);
 
-        this.tag = 'terrain';
         this.position = position;
         this.onCollision = this.collision;
     }
@@ -359,67 +352,15 @@ class TestBlock extends GameObject {
     }
 }
 
-// class GameObject2 {
-//     constructor(position, size) {
-//         this.position = position;
-//         this.size = size;
+class Flag extends GameObject {
+    constructor(position, args) {
+        super(args);
 
-//         this.velocity = new Vector(0 ,0);
+        this.position = position;
+        this.onCollision = this.collision;
+    }
 
-//         this.hiddenObject = null;
-//         this.onCollision = null;
-
-//         this.debug = true;
-//         this.debugColor = 'rgba(255, 0, 0, 0.5)';
-//     }
-
-//     update() {
-//         // let objects = [new GameObject(new Vector(0, 0)), new GameObject(new Vector(0, 0)];
-
-//         // for (let i = 0; i < objects.length; i++) {
-//         //     for (let j = i + 1; j < objects.length; j++){
-//         //         objects[i].resolveCollision(objects[j]);
-//         //     }
-
-//         //     objects[i].position += objects[i].velocity;
-//         // }
-//     }
-
-//     intersects(other) {
-//         return this.position.x + this.size.x > other.position.x &&
-//                this.position.y + this.size.y > other.position.y &&
-//                this.position.x < other.position.x + other.size.x &&
-//                this.position.y < other.position.y + other.size.y;
-//     }
-
-//     resolveCollision(other) {
-//         // let positionCopy = this.position.copy();
-
-//         // positionCopy.x += this.velocity.x;
-//         // if (this.velocity.x > 0 && this.intersects(other)) {
-//         //     this.position.x = other.position.x - this.size.x;
-//         //     this.velocity.x = 0;
-//         // }
-//         // else if (this.velocity.x < 0 && this.intersects(other)) {
-//         //     this.position.x = other.position.x + other.size.x;
-//         //     this.velocity.x = 0;
-//         // }
-
-//         // positionCopy.y += this.velocity.y;
-//         // if (this.velocity.y > 0 && this.intersects(other)) {
-//         //     this.position.y = other.position.y - this.size.y;
-//         //     this.velocity.y = 0;
-//         // }
-//         // else if (this.velocity.y < 0 && this.intersects(other)) {
-//         //     this.position.y = other.position.y + other.size.y;
-//         //     this.velocity.y = 0;
-//         // }
-//     }
-
-//     draw(camera) {
-//         if (this.debug) {
-//             fill(this.debugColor);
-//             rect(this.position.x - camera.x, this.position.y - camera.y, this.size.x, this.size.y);
-//         }
-//     }
-// }
+    collision(other, dir) {
+        if(other.tag == 'player') this.onWin(this);
+    }
+}

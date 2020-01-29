@@ -1,3 +1,5 @@
+const BLOCK_DEBUG = true;
+
 const OBJECTS = {
     1: {
         name: 'player',
@@ -10,14 +12,28 @@ const OBJECTS = {
     },
     2: {
         name: 'solidBlock',
+        tag: 'terrain',
         id: 2,
         type: TestBlock,
         debugColor: 'rgba(0, 255, 0, 0.5)',
         isStatic: true,
         debug: true, 
     },
+    3: {
+        name: 'flag',
+        tag: 'flag',
+        id: 3,
+        type: Flag,
+        debugColor: 'rgba(0, 255, 255, 0.5)',
+        size: [16, 32],
+        colliderOffset: [8, 16],
+        isSolid: false,
+        isStatic: true,
+        debug: true, 
+    },
     57: {
         name: 'goomba',
+        tag: 'enemy',
         id: 57,
         type: BasicEnemy,
         debugColor: 'rgba(255, 0, 100, 0.5)',
@@ -27,6 +43,7 @@ const OBJECTS = {
     },
     37: {
         name: 'koopaTroopa',
+        tag: 'enemy',
         id: 37,
         type: KoopaTroopa,
         debugColor: 'rgba(0, 0, 255, 0.5)',
@@ -38,6 +55,7 @@ const OBJECTS = {
     },
     55: {
         name: 'shell',
+        tag: 'enemy',
         id: 55,
         type: Shell,
         speed: 0.21,
