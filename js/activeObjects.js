@@ -256,7 +256,7 @@ class KoopaTroopa extends BasicEnemy {
     }
 
     collision(other, dir) {
-        //super.collision(other, dir);
+        super.collision(other, dir);
 
         if (dir[1] == -1 && other.name == 'player') {
             other.addForce(-10);

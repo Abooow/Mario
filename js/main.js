@@ -123,7 +123,7 @@ function onWin(flagObj) {
 
     state = 'win';
     player.blockInput = true;
-    player.velocity[0] = 0;
+    player.velocity = [0, 0];
 
     let flagLength = flagSize.y - flagSize.x;
     let hitY = flagLength - (flagObj.position[1] / TILE_SIZE - flagSize.x);
