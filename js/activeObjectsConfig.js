@@ -51,7 +51,7 @@ const OBJECTS = {
         debug: true,
         isSolid: false,
         size: [30, 48],
-        evolveTo: 37,
+        evolveTo: 55,
     },
     55: {
         name: 'shell',
